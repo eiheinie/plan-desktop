@@ -1,0 +1,13 @@
+{
+  "name": "plan-desktop",
+  "version": "1.0.0",
+  "description": "计划：本地保存的 Windows 桌面任务计划表，支持纵向日期跨度、拖动排序和开机自启动。",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check server.mjs && node --check app.mjs && node --check install.mjs"
+  }
+}

@@ -1,0 +1,22 @@
+# Personal tasks, backups and local runtime state
+data/
+runtime/
+*.log
+*.tmp
+*.bak
+*.legacy
+*.damaged-*
+.env
+.env.*
+!.env.example
+
+# Dependencies and local build artifacts
+node_modules/
+dist/
+test/test-plan-*/
+*.zip
+*.lnk
+*.exe
+*.exe.config
+.DS_Store
+Thumbs.db

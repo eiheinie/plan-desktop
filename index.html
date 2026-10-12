@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>计划</title><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css"><script type="module" src="/app.mjs"></script></head>
+<body>
+<div class="app">
+ <header class="topbar"><div class="brand"><img src="/icon.svg" alt="" width="52" height="52"><div><h1>计划<span class="brand-dot">.</span></h1><p id="summary">给每一件事，留一段时间。</p></div></div><div class="top-actions"><label class="startup"><input id="startup" type="checkbox" role="switch"><span class="switch-track"></span><span>开机自启动</span></label><button id="add" class="primary"><span class="plus">＋</span>新建任务</button></div></header>
+ <div id="warning" class="warning" role="alert" hidden></div>
+ <main class="workspace">
+  <aside class="sidebar"><div class="section-heading"><div><h2>我的任务 <span id="task-count" class="badge">0</span></h2><p>拖动卡片排序，双击编辑</p></div><span class="tiny-decoration">✦</span></div>
+   <div class="filters" role="group" aria-label="任务筛选"><button class="active" data-filter="all">全部</button><button data-filter="active">待完成</button><button data-filter="done">已完成</button></div>
+   <div id="task-list" class="task-list" role="list" aria-label="任务列表"></div>
+   <div id="empty-list" class="empty-list" hidden><div class="empty-symbol">＋</div><h3>从一件小事开始</h3><p>写下任务，设定开始和截止时间。<br>让计划变得清晰可见。</p><button id="empty-add" class="text-button">添加第一个任务 →</button></div>
+   <div class="side-footer"><span class="dot"></span> 本机保存，安心安排每一天</div>
+  </aside>
+  <section class="calendar" aria-label="日期跨度图"><div class="calendar-top"><div><div class="eyebrow">YOUR TIME, WELL PLANNED</div><h2 id="month-label"></h2><p>日期从上向下，任务覆盖它的可用时间</p></div><div class="calendar-controls"><button id="prev" class="icon-button" aria-label="上个月">‹</button><button id="today" class="today-button">今天</button><button id="next" class="icon-button" aria-label="下个月">›</button><span class="divider"></span><select id="density" aria-label="时间轴密度"><option value="64">日视图</option><option value="42">紧凑视图</option></select></div></div>
+   <div class="calendar-meta"><span><i class="legend-dot purple"></i> 任务跨度 <i class="legend-dot green"></i> 已完成</span><span id="month-count">本月 0 项任务</span></div>
+   <div id="timeline-scroll" class="timeline-scroll"><div id="timeline" class="timeline"></div></div>
+   <div class="calendar-bottom"><span><i class="legend-dot purple"></i> 今天高亮显示</span><span>单击选中 · 双击编辑 · 横向滚动查看更多</span></div>
+  </section>
+ </main>
+ <footer class="status-bar"><span id="status" role="status">正在读取计划…</span><div><button id="export" class="text-button">导出备份</button><span class="footer-divider">/</span><span>把时间留给重要的事。</span></div></footer>
+</div>
+<dialog id="editor"><form id="task-form"><div class="modal-header"><div><span class="eyebrow">MAKE ROOM FOR WHAT MATTERS</span><h2 id="editor-title">新建任务</h2></div><button type="button" class="close-button" id="close-editor" aria-label="关闭">×</button></div><label class="field">任务内容<input id="title" name="title" maxlength="500" placeholder="这段时间，你想完成什么？" required autocomplete="off"></label><div class="date-fields"><label class="field">开始时间<input id="start" name="start" type="datetime-local" required min="1900-01-01T00:00" max="9998-12-31T23:59"></label><label class="field">截止时间 · DDL<input id="due" name="due" type="datetime-local" required min="1900-01-01T00:00" max="9998-12-31T23:59"></label></div><p class="field-note">时间跨度会自动显示在右侧日期图上，精确时间保留到分钟。</p><p id="form-error" class="form-error" role="alert"></p><div class="modal-actions"><button type="button" id="cancel-editor" class="secondary">取消</button><button type="submit" id="save-task" class="primary">保存任务</button></div></form></dialog>
+<dialog id="delete-dialog"><form method="dialog"><h2>删除这项任务？</h2><p id="delete-title"></p><div class="modal-actions"><button value="cancel" class="secondary">保留任务</button><button value="delete" class="danger">删除</button></div></form></dialog>
+<div id="toast" class="toast" role="status" hidden></div>
+</body></html>
