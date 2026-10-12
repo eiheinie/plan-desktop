@@ -1,6 +1,6 @@
 import { localDate, localTime, monthSpan, reorder, validateTasks } from './model.mjs';
 const $ = id => document.getElementById(id);
-const palette = [['#8a7ac6','#f0edf9'],['#5b9f9a','#eaf5f2'],['#be966b','#faf2e8'],['#6b98c1','#edf4fa'],['#b37b9d','#f7edf4'],['#879d68','#f2f5eb']];
+const palette = [['#7360b0','#f0edf9'],['#327e78','#eaf5f2'],['#936d3c','#faf2e8'],['#477ba5','#edf4fa'],['#915b7d','#f7edf4'],['#627f43','#f2f5eb']];
 let state = { tasks: [], revision: 0, token: '', readOnly: false }, month = new Date(new Date().getFullYear(), new Date().getMonth(), 1), selected = null, editing = null, filter = 'all', busy = false, dragId = null, toastTimer, pointerDrag = null, suppressClickUntil = 0;
 let rowHeight = Number(localStorage.getItem('plan-density') || 64);
 if (![42,64].includes(rowHeight)) rowHeight = 64;
@@ -28,7 +28,7 @@ function choose(id, reveal = false) {
   if (reveal) { const t = state.tasks.find(t=>t.id===id); if (t && !monthSpan(t,month.getFullYear(),month.getMonth())) { const [y,m]=t.start.slice(0,7).split('-').map(Number); month = new Date(y,m-1,1); } }
   document.querySelectorAll('.task-card').forEach(c=>c.classList.toggle('selected',c.dataset.id===id));
   renderTimeline();
-  if (reveal) { const t = state.tasks.find(t=>t.id===id); const span = t && monthSpan(t,month.getFullYear(),month.getMonth()); if (span) $('timeline-scroll').scrollTo({ top: Math.max(0,span.first-1)*rowHeight, left: Math.max(0,filteredTasks().filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===id))*182, behavior:'smooth' }); }
+  if (reveal) { const t = state.tasks.find(t=>t.id===id); const span = t && monthSpan(t,month.getFullYear(),month.getMonth()); if (span) $('timeline-scroll').scrollTo({ top: Math.max(0,span.first-1)*rowHeight, left: Math.max(0,filteredTasks().filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===id))*222, behavior:'smooth' }); }
 }
 function showEditor(id = null) {
   if (busy || state.readOnly) return;
@@ -66,7 +66,7 @@ function renderTimeline() {
   const timeline=$('timeline'),year=month.getFullYear(),m=month.getMonth(),days=new Date(year,m+1,0).getDate();
   const visible=filteredTasks().filter(t=>monthSpan(t,year,m));
   $('month-label').textContent=`${year} 年 ${m+1} 月`;$('month-count').textContent=`本月 ${visible.length} 项任务`;
-  timeline.replaceChildren();timeline.style.height=`${days*rowHeight}px`;timeline.style.width=`${Math.max(510,110+visible.length*182)}px`;timeline.classList.toggle('compact',rowHeight===42);
+  timeline.replaceChildren();timeline.style.height=`${days*rowHeight}px`;timeline.style.width=`${Math.max(510,110+visible.length*222)}px`;timeline.classList.toggle('compact',rowHeight===42);
   for(let i=0;i<days;i++){
     const date=new Date(year,m,i+1),today=localDate(date)===localDate(),weekend=[0,6].includes(date.getDay());
     const row=make('div','date-row'+(today?' today':'')+(weekend?' weekend':''));row.style.top=`${i*rowHeight}px`;row.style.height=`${rowHeight}px`;
@@ -75,9 +75,9 @@ function renderTimeline() {
   if(!visible.length)timeline.append(make('div','timeline-empty',state.tasks.length?'本月没有符合筛选条件的任务。\n可以切换月份，或添加新的计划。':'把任务写下来，时间就有了形状。\n添加第一个任务，在这里看见它的跨度。'));
   visible.forEach((t,i)=>{
     const span=monthSpan(t,year,m),height=(span.last-span.first+1)*rowHeight-10;
-    const card=make('button','span-card'+(selected===t.id?' selected':'')+(t.done?' completed':'')+(height<70?' short':'')+(span.before?' continues-before':'')+(span.after?' continues-after':''));
-    card.type='button';card.dataset.taskId=t.id;paintTask(card,state.tasks.indexOf(t));card.style.left=`${101+i*182}px`;card.style.top=`${span.first*rowHeight+5}px`;card.style.height=`${height}px`;card.style.width='167px';card.title=`${t.title}\n开始：${t.start.replace('T',' ')}\n截止：${t.due.replace('T',' ')}`;card.setAttribute('aria-label',`${t.title}，${t.start.slice(0,10)} 至 ${t.due.slice(0,10)}`);
-    card.append(make('span','span-title',t.title));if(height>45)card.append(make('span','span-dates',`${span.before?'↑ ':''}${dateLabel(t.start)} — ${dateLabel(t.due)}${span.after?' ↓':''}`));if(height>90)card.append(make('span','span-time',t.done?'✓ 已完成':`截止 ${t.due.slice(11)}`));
+    const card=make('button','span-card'+(selected===t.id?' selected':'')+(t.done?' completed':'')+(height<90?' short':'')+(span.before?' continues-before':'')+(span.after?' continues-after':''));
+    card.type='button';card.dataset.taskId=t.id;paintTask(card,state.tasks.indexOf(t));card.style.left=`${101+i*222}px`;card.style.top=`${span.first*rowHeight+5}px`;card.style.height=`${height}px`;card.style.width='207px';card.title=`${t.title}\n开始：${t.start.replace('T',' ')}\n截止：${t.due.replace('T',' ')}`;card.setAttribute('aria-label',`${t.title}，${t.start.slice(0,10)} 至 ${t.due.slice(0,10)}`);
+    card.append(make('span','span-title',t.title));if(height>80)card.append(make('span','span-dates',`${span.before?'↑ ':''}${dateLabel(t.start)} — ${dateLabel(t.due)}${span.after?' ↓':''}`));if(height>150)card.append(make('span','span-time',t.done?'✓ 已完成':`截止 ${t.due.slice(11)}`));
     card.onclick=()=>{selected=t.id;renderList();timeline.querySelectorAll('.span-card').forEach(e=>e.classList.toggle('selected',e.dataset.taskId===t.id));const row=[...$('task-list').children].find(e=>e.dataset.id===t.id);row?.scrollIntoView({block:'nearest',behavior:'smooth'});};card.ondblclick=()=>showEditor(t.id);timeline.append(card);
   });
 }
@@ -91,7 +91,7 @@ $('task-form').onsubmit=async e=>{
   const old=state.tasks.find(t=>t.id===editing),task={id:old?.id||crypto.randomUUID(),title:$('title').value.trim(),start:$('start').value,due:$('due').value,done:old?.done||false};
   try{validateTasks([task]);}catch(e){$('form-error').textContent=e.message;return;}
   const next=old?state.tasks.map(t=>t.id===old.id?task:t):[...state.tasks,task];
-  if(await commit(next)){selected=task.id;$('editor').close();const [year,m]=task.start.split('-').map(Number);month=new Date(year,m-1,1);filter='all';document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('active',b.dataset.filter===filter));render();const span=monthSpan(task,month.getFullYear(),month.getMonth());$('timeline-scroll').scrollTo({top:Math.max(0,span.first-1)*rowHeight,left:Math.max(0,next.filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===task.id))*182});}
+  if(await commit(next)){selected=task.id;$('editor').close();const [year,m]=task.start.split('-').map(Number);month=new Date(year,m-1,1);filter='all';document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('active',b.dataset.filter===filter));render();const span=monthSpan(task,month.getFullYear(),month.getMonth());$('timeline-scroll').scrollTo({top:Math.max(0,span.first-1)*rowHeight,left:Math.max(0,next.filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===task.id))*222});}
   else $('form-error').textContent='尚未保存，请检查下方提示后重试。';
 };
 $('delete-dialog').addEventListener('close',async()=>{if($('delete-dialog').returnValue!=='delete')return;const id=$('delete-dialog').dataset.id;if(await commit(state.tasks.filter(t=>t.id!==id))){if(selected===id)selected=null;render();}});
