@@ -13,6 +13,7 @@
   </aside>
   <section class="calendar" aria-label="日期跨度图"><div class="calendar-top"><div><div class="eyebrow">YOUR TIME, WELL PLANNED</div><h2 id="month-label"></h2><p>日期从上向下，任务覆盖它的可用时间</p></div><div class="calendar-controls"><button id="prev" class="icon-button" aria-label="上个月">‹</button><button id="today" class="today-button">今天</button><button id="next" class="icon-button" aria-label="下个月">›</button><span class="divider"></span><select id="density" aria-label="时间轴密度"><option value="64">日视图</option><option value="42">紧凑视图</option></select></div></div>
    <div class="calendar-meta"><span><i class="legend-dot purple"></i> 任务跨度 <i class="legend-dot green"></i> 已完成</span><span id="month-count">本月 0 项任务</span></div>
+   <div class="width-control"><label for="task-width">图块宽度</label><span aria-hidden="true">窄</span><input id="task-width" type="range" min="80" max="280" step="5" value="165"><span aria-hidden="true">宽</span><output id="task-width-value" for="task-width">165 px</output></div>
    <div id="timeline-scroll" class="timeline-scroll"><div id="timeline" class="timeline"></div></div>
    <div class="calendar-bottom"><span><i class="legend-dot purple"></i> 今天高亮显示</span><span>单击选中 · 双击编辑 · 横向滚动查看更多</span></div>
   </section>

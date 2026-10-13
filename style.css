@@ -80,3 +80,12 @@ dialog{width:630px}
   .eyebrow{font-size:11px}
   .sidebar{max-height:500px}
 }
+
+/* Adjustable timeline cards; keep controls usable at narrow window sizes. */
+.width-control{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 26px;border-bottom:1px solid #eff0f5;background:#faf9fe;color:#706481;font-size:14px}
+.width-control label{font-size:15px;font-weight:600}
+.width-control input{width:160px;min-width:80px;max-width:100%;height:28px;margin:0;accent-color:var(--purple);cursor:ew-resize;flex:1 1 100px;max-width:200px}
+.width-control output{min-width:55px;font-variant-numeric:tabular-nums;color:#51486b}
+.span-dates{white-space:normal;overflow-wrap:anywhere}
+.span-title,.span-dates,.span-time{max-width:100%}
+@media(max-width:1100px){.width-control{padding-left:18px;padding-right:18px}}

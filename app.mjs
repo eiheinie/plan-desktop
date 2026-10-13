@@ -5,6 +5,14 @@ let state = { tasks: [], revision: 0, token: '', readOnly: false }, month = new 
 let rowHeight = Number(localStorage.getItem('plan-density') || 64);
 if (![42,64].includes(rowHeight)) rowHeight = 64;
 $('density').value = String(rowHeight);
+let taskWidth = Number(localStorage.getItem('plan-task-width') || 165);
+if (!Number.isFinite(taskWidth)) taskWidth = 165;
+taskWidth = Math.max(80, Math.min(280, Math.round(taskWidth / 5) * 5));
+function syncTaskWidth() {
+  $('task-width').value = String(taskWidth);
+  $('task-width-value').textContent = `${taskWidth} px`;
+}
+syncTaskWidth();
 function make(tag, className, text) { const e = document.createElement(tag); if (className) e.className = className; if (text !== undefined) e.textContent = text; return e; }
 function paintTask(e, index) { const [c,b] = palette[index % palette.length]; e.style.setProperty('--task-color', c); e.style.setProperty('--task-bg', b); }
 function notify(message, error = false) { $('status').textContent = message; $('status').classList.toggle('error',error); $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(()=>$('toast').hidden = true, 4000); }
@@ -28,7 +36,7 @@ function choose(id, reveal = false) {
   if (reveal) { const t = state.tasks.find(t=>t.id===id); if (t && !monthSpan(t,month.getFullYear(),month.getMonth())) { const [y,m]=t.start.slice(0,7).split('-').map(Number); month = new Date(y,m-1,1); } }
   document.querySelectorAll('.task-card').forEach(c=>c.classList.toggle('selected',c.dataset.id===id));
   renderTimeline();
-  if (reveal) { const t = state.tasks.find(t=>t.id===id); const span = t && monthSpan(t,month.getFullYear(),month.getMonth()); if (span) $('timeline-scroll').scrollTo({ top: Math.max(0,span.first-1)*rowHeight, left: Math.max(0,filteredTasks().filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===id))*180, behavior:'smooth' }); }
+  if (reveal) { const t = state.tasks.find(t=>t.id===id); const span = t && monthSpan(t,month.getFullYear(),month.getMonth()); if (span) $('timeline-scroll').scrollTo({ top: Math.max(0,span.first-1)*rowHeight, left: Math.max(0,filteredTasks().filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===id))*(taskWidth+15), behavior:'smooth' }); }
 }
 function showEditor(id = null) {
   if (busy || state.readOnly) return;
@@ -66,7 +74,7 @@ function renderTimeline() {
   const timeline=$('timeline'),year=month.getFullYear(),m=month.getMonth(),days=new Date(year,m+1,0).getDate();
   const visible=filteredTasks().filter(t=>monthSpan(t,year,m));
   $('month-label').textContent=`${year} 年 ${m+1} 月`;$('month-count').textContent=`本月 ${visible.length} 项任务`;
-  timeline.replaceChildren();timeline.style.height=`${days*rowHeight}px`;timeline.style.width=`${Math.max(510,110+visible.length*180)}px`;timeline.classList.toggle('compact',rowHeight===42);
+  timeline.replaceChildren();timeline.style.height=`${days*rowHeight}px`;timeline.style.width=`${Math.max(510,110+visible.length*(taskWidth+15))}px`;timeline.classList.toggle('compact',rowHeight===42);
   for(let i=0;i<days;i++){
     const date=new Date(year,m,i+1),today=localDate(date)===localDate(),weekend=[0,6].includes(date.getDay());
     const row=make('div','date-row'+(today?' today':'')+(weekend?' weekend':''));row.style.top=`${i*rowHeight}px`;row.style.height=`${rowHeight}px`;
@@ -76,7 +84,7 @@ function renderTimeline() {
   visible.forEach((t,i)=>{
     const span=monthSpan(t,year,m),height=(span.last-span.first+1)*rowHeight-10;
     const card=make('button','span-card'+(selected===t.id?' selected':'')+(t.done?' completed':'')+(height<90?' short':'')+(span.before?' continues-before':'')+(span.after?' continues-after':''));
-    card.type='button';card.dataset.taskId=t.id;paintTask(card,state.tasks.indexOf(t));card.style.left=`${101+i*180}px`;card.style.top=`${span.first*rowHeight+5}px`;card.style.height=`${height}px`;card.style.width='165px';card.title=`${t.title}\n开始：${t.start.replace('T',' ')}\n截止：${t.due.replace('T',' ')}`;card.setAttribute('aria-label',`${t.title}，${t.start.slice(0,10)} 至 ${t.due.slice(0,10)}`);
+    card.type='button';card.dataset.taskId=t.id;paintTask(card,state.tasks.indexOf(t));card.style.left=`${101+i*(taskWidth+15)}px`;card.style.top=`${span.first*rowHeight+5}px`;card.style.height=`${height}px`;card.style.width=`${taskWidth}px`;card.title=`${t.title}\n开始：${t.start.replace('T',' ')}\n截止：${t.due.replace('T',' ')}`;card.setAttribute('aria-label',`${t.title}，${t.start.slice(0,10)} 至 ${t.due.slice(0,10)}`);
     card.append(make('span','span-title',t.title));if(height>80)card.append(make('span','span-dates',`${span.before?'↑ ':''}${dateLabel(t.start)} — ${dateLabel(t.due)}${span.after?' ↓':''}`));if(height>150)card.append(make('span','span-time',t.done?'✓ 已完成':`截止 ${t.due.slice(11)}`));
     card.onclick=()=>{selected=t.id;renderList();timeline.querySelectorAll('.span-card').forEach(e=>e.classList.toggle('selected',e.dataset.taskId===t.id));const row=[...$('task-list').children].find(e=>e.dataset.id===t.id);row?.scrollIntoView({block:'nearest',behavior:'smooth'});};card.ondblclick=()=>showEditor(t.id);timeline.append(card);
   });
@@ -91,7 +99,7 @@ $('task-form').onsubmit=async e=>{
   const old=state.tasks.find(t=>t.id===editing),task={id:old?.id||crypto.randomUUID(),title:$('title').value.trim(),start:$('start').value,due:$('due').value,done:old?.done||false};
   try{validateTasks([task]);}catch(e){$('form-error').textContent=e.message;return;}
   const next=old?state.tasks.map(t=>t.id===old.id?task:t):[...state.tasks,task];
-  if(await commit(next)){selected=task.id;$('editor').close();const [year,m]=task.start.split('-').map(Number);month=new Date(year,m-1,1);filter='all';document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('active',b.dataset.filter===filter));render();const span=monthSpan(task,month.getFullYear(),month.getMonth());$('timeline-scroll').scrollTo({top:Math.max(0,span.first-1)*rowHeight,left:Math.max(0,next.filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===task.id))*180});}
+  if(await commit(next)){selected=task.id;$('editor').close();const [year,m]=task.start.split('-').map(Number);month=new Date(year,m-1,1);filter='all';document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('active',b.dataset.filter===filter));render();const span=monthSpan(task,month.getFullYear(),month.getMonth());$('timeline-scroll').scrollTo({top:Math.max(0,span.first-1)*rowHeight,left:Math.max(0,next.filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===task.id))*(taskWidth+15)});}
   else $('form-error').textContent='尚未保存，请检查下方提示后重试。';
 };
 $('delete-dialog').addEventListener('close',async()=>{if($('delete-dialog').returnValue!=='delete')return;const id=$('delete-dialog').dataset.id;if(await commit(state.tasks.filter(t=>t.id!==id))){if(selected===id)selected=null;render();}});
@@ -99,6 +107,12 @@ document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.da
 $('prev').onclick=()=>{if(month.getFullYear()<=1900&&month.getMonth()===0)return;month.setMonth(month.getMonth()-1);renderTimeline();$('timeline-scroll').scrollTop=0;};
 $('next').onclick=()=>{if(month.getFullYear()>=9998&&month.getMonth()===11)return;month.setMonth(month.getMonth()+1);renderTimeline();$('timeline-scroll').scrollTop=0;};$('today').onclick=jumpToday;
 $('density').onchange=()=>{const day=$('timeline-scroll').scrollTop/rowHeight;rowHeight=Number($('density').value);localStorage.setItem('plan-density',rowHeight);renderTimeline();$('timeline-scroll').scrollTop=day*rowHeight;};
+$('task-width').oninput=()=>{
+  const scroll=$('timeline-scroll'),column=scroll.scrollLeft/(taskWidth+15);
+  taskWidth=Number($('task-width').value);syncTaskWidth();renderTimeline();
+  scroll.scrollLeft=column*(taskWidth+15);
+};
+$('task-width').onchange=()=>{localStorage.setItem('plan-task-width',String(taskWidth));};
 $('startup').onchange=async()=>{if(busy)return;const desired=$('startup').checked;setBusy(true);try{const r=await request('/api/startup',{enabled:desired});state.autostart=r.autostart;$('startup').checked=r.autostart;notify(r.autostart?'已开启开机自启动':'已关闭开机自启动');}catch(e){$('startup').checked=state.autostart;notify(e.message,true);}finally{setBusy(false);}};
 $('export').onclick=()=>{const blob=new Blob([JSON.stringify({version:3,revision:state.revision,tasks:state.tasks},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=make('a');a.href=url;a.download=`计划备份-${localDate()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);notify('已导出任务备份。');};
 $('task-list').ondragover=e=>{if(!dragId)return;e.preventDefault();const box=$('task-list').getBoundingClientRect();if(e.clientY<box.top+45)$('task-list').scrollTop-=12;if(e.clientY>box.bottom-45)$('task-list').scrollTop+=12;};
