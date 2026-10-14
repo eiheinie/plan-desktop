@@ -89,3 +89,16 @@ dialog{width:630px}
 .span-dates{white-space:normal;overflow-wrap:anywhere}
 .span-title,.span-dates,.span-time{max-width:100%}
 @media(max-width:1100px){.width-control{padding-left:18px;padding-right:18px}}
+
+.task-panel{display:flex;flex-direction:column;flex:1;min-height:0}
+.sidebar-tabs{display:flex;gap:5px;padding:4px;background:#e9e7f4;border-radius:11px;margin-bottom:14px}
+.sidebar-tabs button{flex:1;padding:10px 5px;border-radius:8px;color:#716b85;font-size:16px;font-weight:600}
+.sidebar-tabs button.active{background:white;color:#6153b2;box-shadow:0 2px 6px #3020500a}
+.daily-progress{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px;color:#706481;margin-bottom:12px}
+.daily-progress strong{color:#7065ba}.daily-add{border:1px dashed #b9afe0;border-radius:10px;padding:11px;color:#7060b2;background:#f9f7ff;margin-bottom:14px;text-align:center;font-size:16px}
+.daily-card{background:white;border:1px solid #e8e5f1;border-radius:13px;padding:16px;margin-bottom:12px}
+.daily-check{display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:19px;font-weight:600;line-height:1.5;overflow-wrap:anywhere}
+.daily-check input{width:22px;height:22px;margin:3px 0 0;accent-color:var(--purple);flex-shrink:0;cursor:pointer}
+.daily-card.completed .daily-check span{color:#7a8590;text-decoration:line-through}
+.daily-note{font-size:14px;color:#777f90;line-height:1.5;margin-top:10px}.daily-note.late{color:#ad654d}
+.daily-time-field{margin-top:22px}#daily-delete-title{overflow-wrap:anywhere;margin-top:16px;line-height:1.6}

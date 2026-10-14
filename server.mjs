@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { migrate, validateTasks } from './model.mjs';
+import { migrate, validateTasks, validateDailyTasks } from './model.mjs';
 
 const exec = promisify(execFile);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -27,7 +27,7 @@ export const startup = {
 export function createPlanServer({ root = ROOT, dataDir = path.join(root, 'data'), port = PORT, startupAdapter = startup } = {}) {
   fs.mkdirSync(dataDir, { recursive: true });
   const filename = path.join(dataDir, 'tasks.json');
-  let state = { version: 3, revision: 0, tasks: [] }, readOnly = false, warning = '';
+  let state = { version: 4, revision: 0, tasks: [], dailyTasks: [] }, readOnly = false, warning = '';
   if (fs.existsSync(filename)) {
     try { state = migrate(JSON.parse(fs.readFileSync(filename, 'utf8').replace(/^\uFEFF/, ''))); }
     catch (e) {
@@ -52,7 +52,7 @@ export function createPlanServer({ root = ROOT, dataDir = path.join(root, 'data'
         try { autostart = await startupAdapter.get(); } catch (e) { startupError = e.message; }
         return json(200, { ...state, autostart, startupError, readOnly, warning, token, dataPath: dataDir });
       }
-      if (req.method === 'POST' && (url.pathname === '/api/tasks' || url.pathname === '/api/startup')) {
+      if (req.method === 'POST' && (url.pathname === '/api/tasks' || url.pathname === '/api/daily' || url.pathname === '/api/startup')) {
         if (req.headers['x-plan-token'] !== token || req.headers['content-type']?.split(';')[0] !== 'application/json') return json(403, { error: '请求验证失败，请刷新页面。' });
         let bytes = 0, chunks = [];
         for await (const chunk of req) { bytes += chunk.length; if (bytes > 2 * 1024 * 1024) return json(413, { error: '任务数据过大。' }); chunks.push(chunk); }
@@ -63,8 +63,12 @@ export function createPlanServer({ root = ROOT, dataDir = path.join(root, 'data'
         }
         if (readOnly) return json(423, { error: warning });
         if (body.revision !== state.revision) return json(409, { error: '另一个窗口已修改任务，请刷新后重试。' });
-        let tasks; try { tasks = validateTasks(body.tasks); } catch (e) { return json(400, { error: e.message }); }
-        const next = { version: 3, revision: state.revision + 1, tasks };
+        let tasks = state.tasks, dailyTasks = state.dailyTasks;
+        try {
+          if (url.pathname === '/api/daily') dailyTasks = validateDailyTasks(body.dailyTasks);
+          else tasks = validateTasks(body.tasks);
+        } catch (e) { return json(400, { error: e.message }); }
+        const next = { version: 4, revision: state.revision + 1, tasks, dailyTasks };
         const temp = filename + '.tmp';
         const fd = fs.openSync(temp, 'w'); try { fs.writeFileSync(fd, JSON.stringify(next, null, 2), 'utf8'); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
         if (fs.existsSync(filename)) { if (state.revision === 0 && !fs.existsSync(filename + '.legacy')) fs.copyFileSync(filename, filename + '.legacy'); if (!warning) fs.copyFileSync(filename, filename + '.bak'); }

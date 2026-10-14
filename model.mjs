@@ -31,15 +31,15 @@ function fromLegacy(value) {
 }
 export function migrate(raw, now = new Date()) {
   if (Array.isArray(raw)) {
-    return { version: 3, revision: 0, tasks: validateTasks(raw.map((t, i) => {
+    return { version: 4, dailyTasks: [], revision: 0, tasks: validateTasks(raw.map((t, i) => {
       const due = fromLegacy(t.Due);
       let start = t.Start ? fromLegacy(t.Start) : `${localDate(now)}T00:00`;
       if (!validDateTime(start) || start > due) start = `${due.slice(0,10)}T00:00`;
       return { id: `legacy-${i}`, title: t.Title, due, start, done: !!t.Done };
     })) };
   }
-  if (!raw || raw.version !== 3 || !Number.isSafeInteger(raw.revision) || raw.revision < 0) throw new Error('任务文件格式无法识别。');
-  return { version: 3, revision: raw.revision, tasks: validateTasks(raw.tasks) };
+  if (!raw || ![3,4].includes(raw.version) || !Number.isSafeInteger(raw.revision) || raw.revision < 0) throw new Error('任务文件格式无法识别。');
+  return { version: 4, revision: raw.revision, tasks: validateTasks(raw.tasks), dailyTasks: validateDailyTasks(raw.version === 3 ? [] : raw.dailyTasks) };
 }
 export function monthSpan(task, year, month) {
   const first = `${year}-${pad(month+1)}-01`;
@@ -57,4 +57,21 @@ export function reorder(tasks, id, targetId, after = false) {
   const to = next.findIndex(t => t.id === targetId);
   next.splice(to < 0 ? next.length : to + (after ? 1 : 0), 0, item);
   return next;
+}
+
+export function validateDailyTasks(tasks) {
+  if (!Array.isArray(tasks) || tasks.length > 1000) throw new Error('每日任务数量或格式有误。');
+  const ids = new Set();
+  return tasks.map(t => {
+    if (!t || typeof t.id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(t.id) || ids.has(t.id)) throw new Error('每日任务编号有误。');
+    ids.add(t.id);
+    if (typeof t.title !== 'string' || !t.title.trim() || t.title.length > 500) throw new Error('任务内容需要在 1 到 500 个字之间。');
+    if (typeof t.time !== 'string' || (t.time !== '' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(t.time))) throw new Error('请检查每日截止时间。');
+    if (!Array.isArray(t.completedDates) || t.completedDates.length > 10000 || t.completedDates.some(d => typeof d !== 'string' || !validDateTime(`${d}T00:00`))) throw new Error('每日完成记录有误。');
+    return { id: t.id, title: t.title.trim(), time: t.time, completedDates: [...new Set(t.completedDates)].sort() };
+  });
+}
+export function dailyDone(task, day = localDate()) { return task.completedDates.includes(day); }
+export function toggleDaily(task, day = localDate()) {
+  return { ...task, completedDates: dailyDone(task, day) ? task.completedDates.filter(d => d !== day) : [...task.completedDates, day] };
 }

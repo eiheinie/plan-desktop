@@ -1,7 +1,7 @@
-import { localDate, localTime, monthSpan, reorder, validateTasks } from './model.mjs';
+import { localDate, localTime, monthSpan, reorder, validateTasks, validateDailyTasks, dailyDone, toggleDaily } from './model.mjs';
 const $ = id => document.getElementById(id);
 const palette = [['#7360b0','#f0edf9'],['#327e78','#eaf5f2'],['#936d3c','#faf2e8'],['#477ba5','#edf4fa'],['#915b7d','#f7edf4'],['#627f43','#f2f5eb']];
-let state = { tasks: [], revision: 0, token: '', readOnly: false }, month = new Date(new Date().getFullYear(), new Date().getMonth(), 1), selected = null, editing = null, filter = 'all', busy = false, dragId = null, toastTimer, pointerDrag = null, suppressClickUntil = 0;
+let state = { tasks: [], dailyTasks: [], revision: 0, token: '', readOnly: false }, month = new Date(new Date().getFullYear(), new Date().getMonth(), 1), selected = null, editing = null, filter = 'all', busy = false, dragId = null, toastTimer, pointerDrag = null, suppressClickUntil = 0;
 let rowHeight = Number(localStorage.getItem('plan-density') || 64);
 if (![42,64].includes(rowHeight)) rowHeight = 64;
 $('density').value = String(rowHeight);
@@ -20,7 +20,7 @@ async function request(url, body) {
   const response = await fetch(url, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Plan-Token': state.token }, body: JSON.stringify(body) });
   const value = await response.json(); if (!response.ok) { const e = new Error(value.error || '操作未完成。'); e.status = response.status; throw e; } return value;
 }
-function setBusy(value) { busy = value; document.body.classList.toggle('saving',value); $('save-task').disabled = value; $('startup').disabled = value || !!state.startupError; $('add').disabled = value || state.readOnly; }
+function setBusy(value) { busy = value; document.body.classList.toggle('saving',value); $('save-task').disabled = value; $('daily-save').disabled = value; $('daily-add').disabled = value || state.readOnly; $('startup').disabled = value || !!state.startupError; $('add').disabled = value || state.readOnly; }
 async function commit(next) {
   if (busy || state.readOnly) return false;
   setBusy(true);
@@ -89,9 +89,10 @@ function renderTimeline() {
     card.onclick=()=>{selected=t.id;renderList();timeline.querySelectorAll('.span-card').forEach(e=>e.classList.toggle('selected',e.dataset.taskId===t.id));const row=[...$('task-list').children].find(e=>e.dataset.id===t.id);row?.scrollIntoView({block:'nearest',behavior:'smooth'});};card.ondblclick=()=>showEditor(t.id);timeline.append(card);
   });
 }
-function render() { $('summary').textContent=`${new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'})}  ·  ${state.tasks.filter(t=>!t.done).length} 项待办 / ${state.tasks.filter(t=>t.done).length} 项完成`;renderList();renderTimeline(); }
+function render() { renderDaily(); $('summary').textContent=`${new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'})}  ·  ${state.tasks.filter(t=>!t.done).length} 项待办 / ${state.tasks.filter(t=>t.done).length} 项完成`;renderList();renderTimeline(); }
 function jumpToday(){month=new Date(new Date().getFullYear(),new Date().getMonth(),1);renderTimeline();$('timeline-scroll').scrollTo({top:Math.max(0,new Date().getDate()-2)*rowHeight,left:0});}
-$('add').onclick=$('empty-add').onclick=()=>showEditor();
+$('add').onclick=()=>dailyView?showDailyEditor():showEditor();
+$('empty-add').onclick=()=>showEditor();
 $('close-editor').onclick=$('cancel-editor').onclick=()=>{if(!busy)$('editor').close();};
 $('editor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});
 $('task-form').onsubmit=async e=>{
@@ -114,7 +115,7 @@ $('task-width').oninput=()=>{
 };
 $('task-width').onchange=()=>{localStorage.setItem('plan-task-width',String(taskWidth));};
 $('startup').onchange=async()=>{if(busy)return;const desired=$('startup').checked;setBusy(true);try{const r=await request('/api/startup',{enabled:desired});state.autostart=r.autostart;$('startup').checked=r.autostart;notify(r.autostart?'已开启开机自启动':'已关闭开机自启动');}catch(e){$('startup').checked=state.autostart;notify(e.message,true);}finally{setBusy(false);}};
-$('export').onclick=()=>{const blob=new Blob([JSON.stringify({version:3,revision:state.revision,tasks:state.tasks},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=make('a');a.href=url;a.download=`计划备份-${localDate()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);notify('已导出任务备份。');};
+$('export').onclick=()=>{const blob=new Blob([JSON.stringify({version:4,revision:state.revision,tasks:state.tasks,dailyTasks:state.dailyTasks},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=make('a');a.href=url;a.download=`计划备份-${localDate()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);notify('已导出任务备份。');};
 $('task-list').ondragover=e=>{if(!dragId)return;e.preventDefault();const box=$('task-list').getBoundingClientRect();if(e.clientY<box.top+45)$('task-list').scrollTop-=12;if(e.clientY>box.bottom-45)$('task-list').scrollTop+=12;};
 $('task-list').ondrop=async e=>{e.preventDefault();if(dragId&&!e.target.closest('.task-card')){const id=dragId;dragId=null;if(await commit(reorder(state.tasks,id,null))){selected=id;render();}}};
 document.addEventListener('pointermove',e=>{
@@ -135,7 +136,93 @@ document.addEventListener('pointerup',async e=>{
   const rect=target?.getBoundingClientRect();if(await commit(reorder(state.tasks,drag.id,target?.dataset.id,!!rect&&e.clientY>rect.top+rect.height/2))){selected=drag.id;render();}
 });
 document.addEventListener('pointercancel',()=>{pointerDrag=null;$('task-list').querySelectorAll('.drop-before,.drop-after,.dragging').forEach(c=>c.classList.remove('drop-before','drop-after','dragging'));});
-window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='n'){e.preventDefault();if(!$('editor').open)showEditor();}});
+window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='n'){e.preventDefault();if(!$('editor').open&&!$('daily-editor').open){if(dailyView)showDailyEditor();else showEditor();}}});
+let dailyView = false, dailyEditing = null, displayedDay = localDate();
+function showDailyView(enabled) {
+  dailyView = enabled;
+  $('plan-panel').hidden = enabled; $('daily-panel').hidden = !enabled;
+  $('show-plan').classList.toggle('active', !enabled); $('show-daily').classList.toggle('active', enabled);
+  $('show-plan').setAttribute('aria-pressed', String(!enabled)); $('show-daily').setAttribute('aria-pressed', String(enabled));
+  $('add').textContent = enabled ? '＋ 每日任务' : '＋ 新建任务';
+  renderDaily();
+}
+$('show-plan').onclick=()=>showDailyView(false);
+$('show-daily').onclick=()=>showDailyView(true);
+function renderDaily() {
+  const day = localDate(), tasks = state.dailyTasks || [], list = $('daily-list');
+  const scrollTop = list.scrollTop;
+  $('daily-count').textContent = tasks.length;
+  $('daily-date').textContent = new Date().toLocaleDateString('zh-CN', {month:'long',day:'numeric'});
+  $('daily-progress').textContent = `今日完成 ${tasks.filter(t=>dailyDone(t,day)).length} / ${tasks.length}`;
+  $('daily-empty').hidden = tasks.length > 0; list.hidden = !tasks.length;
+  $('daily-add').disabled = busy || state.readOnly;
+  list.replaceChildren();
+  for (const t of tasks) {
+    const done = dailyDone(t,day), card = make('article','daily-card'+(done?' completed':''));
+    card.setAttribute('role','listitem');
+    const label = make('label','daily-check'), check = make('input'); check.type='checkbox'; check.checked=done; check.disabled=busy||state.readOnly;
+    label.append(check,make('span','',t.title));card.append(label);
+    check.onchange=async()=>{
+      if(busy||state.readOnly){check.checked=done;return;}
+      const today=localDate();
+      if(today!==day){renderDaily();return;}
+      await commitDaily(state.dailyTasks.map(x=>x.id===t.id?toggleDaily(x,today):x));
+      renderDaily();
+    };
+    const late = !done && t.time && localTime().slice(11)>t.time;
+    card.append(make('p','daily-note'+(late?' late':''),done?'✓ 今天已完成':t.time?`每天 ${t.time} 前完成${late?' · 今日已超时':''}`:'每天一次 · 今天待完成'));
+    const actions=make('div','card-actions'),edit=make('button','','编辑'),remove=make('button','','删除');
+    edit.type=remove.type='button';edit.disabled=remove.disabled=busy||state.readOnly;
+    edit.setAttribute('aria-label','编辑每日任务 '+t.title);remove.setAttribute('aria-label','删除每日任务 '+t.title);
+    edit.onclick=()=>showDailyEditor(t.id);remove.onclick=()=>{if(busy)return;$('daily-delete-title').textContent=t.title;$('daily-delete').dataset.id=t.id;$('daily-delete').showModal();};
+    actions.append(edit,remove);card.append(actions);list.append(card);
+  }
+  list.scrollTop=scrollTop;
+}
+async function commitDaily(next) {
+  if(busy||state.readOnly)return false;
+  setBusy(true);
+  try {
+    next=validateDailyTasks(next);
+    const result=await request('/api/daily',{revision:state.revision,dailyTasks:next});
+    state.dailyTasks=next;state.revision=result.revision;
+    $('status').classList.remove('error');$('status').textContent='每日任务已保存';return true;
+  } catch(e) {
+    notify(e.message,true);
+    if(e.status===409){try{state=await request('/api/state');render();}catch(error){notify(error.message,true);}}
+    return false;
+  } finally {setBusy(false);}
+}
+function showDailyEditor(id=null) {
+  if(busy||state.readOnly)return;
+  dailyEditing=id;const task=state.dailyTasks.find(t=>t.id===id);
+  $('daily-editor-title').textContent=task?'编辑每日任务':'添加每日任务';
+  $('daily-title').value=task?.title||'';$('daily-time').value=task?.time||'';$('daily-error').textContent='';
+  $('daily-editor').showModal();$('daily-title').focus();
+}
+$('daily-add').onclick=()=>showDailyEditor();
+$('daily-close').onclick=$('daily-cancel').onclick=()=>{if(!busy)$('daily-editor').close();};
+$('daily-editor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});
+$('daily-form').onsubmit=async e=>{
+  e.preventDefault();if(busy)return;
+  const old=state.dailyTasks.find(t=>t.id===dailyEditing);
+  const task={id:old?.id||crypto.randomUUID(),title:$('daily-title').value.trim(),time:$('daily-time').value,completedDates:old?.completedDates||[]};
+  try{validateDailyTasks([task]);}catch(error){$('daily-error').textContent=error.message;return;}
+  if(await commitDaily(old?state.dailyTasks.map(t=>t.id===old.id?task:t):[...state.dailyTasks,task])){$('daily-editor').close();renderDaily();}
+  else $('daily-error').textContent='未保存，请检查下方提示后重试。';
+};
+$('daily-delete').addEventListener('close',async()=>{
+  if($('daily-delete').returnValue!=='delete')return;
+  if(await commitDaily(state.dailyTasks.filter(t=>t.id!==$('daily-delete').dataset.id)))renderDaily();
+});
+function refreshDailyDate() {
+  if(document.hidden||busy)return;
+  if(displayedDay!==localDate()){displayedDay=localDate();render();}else if(dailyView)renderDaily();
+}
+setInterval(refreshDailyDate,30000);
+window.addEventListener('focus',refreshDailyDate);
+document.addEventListener('visibilitychange',refreshDailyDate);
+
 try {
   state=await request('/api/state');$('startup').checked=state.autostart;$('startup').disabled=!!state.startupError;
   $('warning').hidden=!(state.warning||state.startupError);$('warning').textContent=[state.warning,state.startupError].filter(Boolean).join(' ');
