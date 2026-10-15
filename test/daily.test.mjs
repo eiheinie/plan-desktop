@@ -6,8 +6,8 @@ import path from 'node:path';
 import { migrate, validateDailyTasks, dailyDone, toggleDaily } from '../model.mjs';
 import { createPlanServer } from '../server.mjs';
 
-const daily = {id:'reading',title:'每天阅读',time:'21:00',completedDates:[]};
-const plan = {id:'project',title:'项目计划',start:'2026-10-14T09:00',due:'2026-10-20T18:00',done:false};
+const daily = {id:'reading',title:'每天阅读',details:'学习极限这一章\n完成课后习题',time:'21:00',completedDates:[]};
+const plan = {id:'project',title:'项目计划',details:'复习极限与连续',start:'2026-10-14T09:00',due:'2026-10-20T18:00',done:false};
 test('旧计划无损迁移，每日任务按日期完成和撤销，跨日和跨年不继承完成状态',()=>{
   const migrated=migrate({version:3,revision:7,tasks:[plan]});
   assert.deepEqual(migrated.tasks,[plan]);assert.deepEqual(migrated.dailyTasks,[]);assert.equal(migrated.version,4);assert.equal(migrated.revision,7);
@@ -19,6 +19,7 @@ test('旧计划无损迁移，每日任务按日期完成和撤销，跨日和�
   assert.throws(()=>validateDailyTasks([{...daily,time:'24:00'}]));
   assert.throws(()=>validateDailyTasks([{...daily,completedDates:['2026-02-30']}]));
   assert.throws(()=>validateDailyTasks([daily,daily]));
+  assert.throws(()=>validateDailyTasks([{...daily,details:'a'.repeat(5001)}]));
 });
 
 test('每日任务和普通计划独立保存、冲突保护、重启保留完成记录',async()=>{
@@ -35,7 +36,7 @@ test('每日任务和普通计划独立保存、冲突保护、重启保留完�
     assert.equal((await send('/api/tasks',{revision:1,tasks:[{...plan,done:true}]})).status,200);
     assert.equal((await send('/api/daily',{revision:2,dailyTasks:[{...daily,time:'invalid'}]})).status,400);
     await new Promise(r=>server.close(r));await start();
-    assert.deepEqual(state.dailyTasks,[completed]);assert.equal(state.tasks[0].done,true);assert.equal(state.revision,2);
+    assert.deepEqual(state.dailyTasks,[completed]);assert.equal(state.tasks[0].done,true);assert.equal(state.tasks[0].details,plan.details);assert.equal(state.revision,2);
     assert.equal((await send('/api/daily',{revision:2,dailyTasks:[]})).status,200);
     const saved=JSON.parse(fs.readFileSync(path.join(dataDir,'tasks.json')));
     assert.equal(saved.tasks[0].done,true);assert.deepEqual(saved.dailyTasks,[]);

@@ -12,10 +12,11 @@ export function validateTasks(tasks) {
   return tasks.map(t => {
     if (!t || typeof t.id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(t.id) || ids.has(t.id)) throw new Error('任务编号有误。');
     ids.add(t.id);
+    if (t.details !== undefined && (typeof t.details !== 'string' || t.details.length > 5000)) throw new Error('详情最多 5000 个字。');
     if (typeof t.title !== 'string' || !t.title.trim() || t.title.length > 500) throw new Error('任务内容需要在 1 到 500 个字之间。');
     if (!validDateTime(t.start) || !validDateTime(t.due) || t.start > t.due) throw new Error('请检查开始时间和截止时间。');
     if (typeof t.done !== 'boolean') throw new Error('完成状态有误。');
-    return { id: t.id, title: t.title.trim(), start: t.start, due: t.due, done: t.done };
+    return { id: t.id, title: t.title.trim(), ...(t.details !== undefined ? {details:t.details.trim()} : {}), start: t.start, due: t.due, done: t.done };
   });
 }
 function fromLegacy(value) {
@@ -65,10 +66,11 @@ export function validateDailyTasks(tasks) {
   return tasks.map(t => {
     if (!t || typeof t.id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(t.id) || ids.has(t.id)) throw new Error('每日任务编号有误。');
     ids.add(t.id);
+    if (t.details !== undefined && (typeof t.details !== 'string' || t.details.length > 5000)) throw new Error('详情最多 5000 个字。');
     if (typeof t.title !== 'string' || !t.title.trim() || t.title.length > 500) throw new Error('任务内容需要在 1 到 500 个字之间。');
     if (typeof t.time !== 'string' || (t.time !== '' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(t.time))) throw new Error('请检查每日截止时间。');
     if (!Array.isArray(t.completedDates) || t.completedDates.length > 10000 || t.completedDates.some(d => typeof d !== 'string' || !validDateTime(`${d}T00:00`))) throw new Error('每日完成记录有误。');
-    return { id: t.id, title: t.title.trim(), time: t.time, completedDates: [...new Set(t.completedDates)].sort() };
+    return { id: t.id, title: t.title.trim(), ...(t.details !== undefined ? {details:t.details.trim()} : {}), time: t.time, completedDates: [...new Set(t.completedDates)].sort() };
   });
 }
 export function dailyDone(task, day = localDate()) { return task.completedDates.includes(day); }

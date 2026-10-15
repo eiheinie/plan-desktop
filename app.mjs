@@ -36,13 +36,13 @@ function choose(id, reveal = false) {
   if (reveal) { const t = state.tasks.find(t=>t.id===id); if (t && !monthSpan(t,month.getFullYear(),month.getMonth())) { const [y,m]=t.start.slice(0,7).split('-').map(Number); month = new Date(y,m-1,1); } }
   document.querySelectorAll('.task-card').forEach(c=>c.classList.toggle('selected',c.dataset.id===id));
   renderTimeline();
-  if (reveal) { const t = state.tasks.find(t=>t.id===id); const span = t && monthSpan(t,month.getFullYear(),month.getMonth()); if (span) $('timeline-scroll').scrollTo({ top: Math.max(0,span.first-1)*rowHeight, left: Math.max(0,filteredTasks().filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===id))*(taskWidth+15), behavior:'smooth' }); }
+  if (reveal) { const t = state.tasks.find(t=>t.id===id); const span = t && monthSpan(t,month.getFullYear(),month.getMonth()); if (span) $('timeline-scroll').scrollTo({ top: Math.max(0,span.first-1)*rowHeight, left: ((state.dailyTasks||[]).length+Math.max(0,filteredTasks().filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===id)))*(taskWidth+15), behavior:'smooth' }); }
 }
 function showEditor(id = null) {
   if (busy || state.readOnly) return;
   editing = id; const t = state.tasks.find(t=>t.id===id), now = new Date(); now.setSeconds(0,0);
   const due = new Date(); due.setDate(due.getDate()+2); due.setHours(18,0,0,0);
-  $('editor-title').textContent = t ? '编辑任务' : '新建任务'; $('title').value = t?.title || ''; $('start').value = t?.start || localTime(now); $('due').value = t?.due || localTime(due); $('form-error').textContent = '';
+  $('editor-title').textContent = t ? '编辑任务' : '新建任务'; $('title').value = t?.title || ''; $('details').value = t?.details || ''; $('start').value = t?.start || localTime(now); $('due').value = t?.due || localTime(due); $('form-error').textContent = '';
   $('editor').showModal(); $('title').focus();
 }
 function renderList() {
@@ -54,6 +54,7 @@ function renderList() {
     const card = make('article', 'task-card' + (selected===t.id?' selected':'') + (t.done?' completed':''));
     card.dataset.id = t.id; card.tabIndex = 0; card.draggable = false; card.setAttribute('role','listitem'); card.setAttribute('aria-label',t.title); paintTask(card,state.tasks.indexOf(t));
     const top=make('div','task-card-top'); const status=t.done?'已完成':t.due<localTime()?'已逾期':t.start>localTime()?'未开始':'进行中'; top.append(make('span','task-tag',status),make('span','grip','⠿')); card.append(top,make('h3','task-title',t.title),make('p','task-date',`${dateLabel(t.start)} ${t.start.slice(11)}  →  ${dateLabel(t.due)} ${t.due.slice(11)}`));
+    if(t.details)card.append(make('p','list-details',t.details));
     const actions = make('div','card-actions'); const complete=make('button','complete',t.done?'↶ 恢复任务':'○ 标记完成'),edit=make('button','','编辑'),remove=make('button','','删除');
     complete.type=edit.type=remove.type='button'; complete.setAttribute('aria-label',(t.done?'恢复 ':'完成 ')+t.title); edit.setAttribute('aria-label','编辑 '+t.title);remove.setAttribute('aria-label','删除 '+t.title);
     complete.disabled=edit.disabled=remove.disabled=state.readOnly;
@@ -72,21 +73,38 @@ function renderList() {
 }
 function renderTimeline() {
   const timeline=$('timeline'),year=month.getFullYear(),m=month.getMonth(),days=new Date(year,m+1,0).getDate();
-  const visible=filteredTasks().filter(t=>monthSpan(t,year,m));
-  $('month-label').textContent=`${year} 年 ${m+1} 月`;$('month-count').textContent=`本月 ${visible.length} 项任务`;
-  timeline.replaceChildren();timeline.style.height=`${days*rowHeight}px`;timeline.style.width=`${Math.max(510,110+visible.length*(taskWidth+15))}px`;timeline.classList.toggle('compact',rowHeight===42);
+  const visible=filteredTasks().filter(t=>monthSpan(t,year,m)), daily=state.dailyTasks||[];
+  $('month-label').textContent=`${year} 年 ${m+1} 月`;$('month-count').textContent=`计划 ${visible.length} 项 · 每日 ${daily.length} 项`;
+  timeline.replaceChildren();timeline.style.height=`${days*rowHeight}px`;timeline.style.width=`${Math.max(510,110+(visible.length+daily.length)*(taskWidth+15))}px`;timeline.classList.toggle('compact',rowHeight===42);
   for(let i=0;i<days;i++){
     const date=new Date(year,m,i+1),today=localDate(date)===localDate(),weekend=[0,6].includes(date.getDay());
     const row=make('div','date-row'+(today?' today':'')+(weekend?' weekend':''));row.style.top=`${i*rowHeight}px`;row.style.height=`${rowHeight}px`;
     const cell=make('div','date-cell');cell.append(make('div','date-num',String(i+1).padStart(2,'0')),make('div','date-week',today?'今天':date.toLocaleDateString('zh-CN',{weekday:'short'})));row.append(cell);timeline.append(row);
   }
-  if(!visible.length)timeline.append(make('div','timeline-empty',state.tasks.length?'本月没有符合筛选条件的任务。\n可以切换月份，或添加新的计划。':'把任务写下来，时间就有了形状。\n添加第一个任务，在这里看见它的跨度。'));
+  if(!visible.length&&!daily.length)timeline.append(make('div','timeline-empty',state.tasks.length?'本月没有符合筛选条件的任务。\n可以切换月份，或添加新的计划。':'把任务写下来，时间就有了形状。\n添加第一个任务，在这里看见它的跨度。'));
   visible.forEach((t,i)=>{
     const span=monthSpan(t,year,m),height=(span.last-span.first+1)*rowHeight-10;
     const card=make('button','span-card'+(selected===t.id?' selected':'')+(t.done?' completed':'')+(height<90?' short':'')+(span.before?' continues-before':'')+(span.after?' continues-after':''));
-    card.type='button';card.dataset.taskId=t.id;paintTask(card,state.tasks.indexOf(t));card.style.left=`${101+i*(taskWidth+15)}px`;card.style.top=`${span.first*rowHeight+5}px`;card.style.height=`${height}px`;card.style.width=`${taskWidth}px`;card.title=`${t.title}\n开始：${t.start.replace('T',' ')}\n截止：${t.due.replace('T',' ')}`;card.setAttribute('aria-label',`${t.title}，${t.start.slice(0,10)} 至 ${t.due.slice(0,10)}`);
-    card.append(make('span','span-title',t.title));if(height>80)card.append(make('span','span-dates',`${span.before?'↑ ':''}${dateLabel(t.start)} — ${dateLabel(t.due)}${span.after?' ↓':''}`));if(height>150)card.append(make('span','span-time',t.done?'✓ 已完成':`截止 ${t.due.slice(11)}`));
-    card.onclick=()=>{selected=t.id;renderList();timeline.querySelectorAll('.span-card').forEach(e=>e.classList.toggle('selected',e.dataset.taskId===t.id));const row=[...$('task-list').children].find(e=>e.dataset.id===t.id);row?.scrollIntoView({block:'nearest',behavior:'smooth'});};card.ondblclick=()=>showEditor(t.id);timeline.append(card);
+    card.type='button';card.dataset.taskId=t.id;paintTask(card,state.tasks.indexOf(t));card.style.left=`${101+(i+daily.length)*(taskWidth+15)}px`;card.style.top=`${span.first*rowHeight+5}px`;card.style.height=`${height}px`;card.style.width=`${taskWidth}px`;card.title=`${t.title}${t.details?"\n"+t.details:""}\n开始：${t.start.replace('T',' ')}\n截止：${t.due.replace('T',' ')}`;card.setAttribute('aria-label',`${t.title}，${t.start.slice(0,10)} 至 ${t.due.slice(0,10)}`);
+    card.append(make('span','span-title',t.title));if(t.details){card.classList.add('with-details');card.append(make('span','span-details',t.details));}if(height>100)card.append(make('span','span-dates',`${span.before?'↑ ':''}${dateLabel(t.start)} — ${dateLabel(t.due)}${span.after?' ↓':''}`));if(height>150)card.append(make('span','span-time',t.done?'✓ 已完成':`截止 ${t.due.slice(11)}`));
+    card.onclick=()=>{showDailyView(false);selected=t.id;renderList();timeline.querySelectorAll('.span-card').forEach(e=>e.classList.toggle('selected',e.dataset.taskId===t.id));const row=[...$('task-list').children].find(e=>e.dataset.id===t.id);row?.scrollIntoView({block:'nearest',behavior:'smooth'});};card.ondblclick=()=>showEditor(t.id);timeline.append(card);
+  });
+
+  daily.forEach((t,column)=>{
+    for(let dayIndex=0;dayIndex<days;dayIndex++){
+      const day=localDate(new Date(year,m,dayIndex+1)),done=dailyDone(t,day);
+      if(filter==='done'&&!done||filter==='active'&&done)continue;
+      const card=make('button','span-card daily-span short'+(t.details?' with-details':'')+(done?' completed':''));
+      paintTask(card,column);card.type='button';card.dataset.dailyId=t.id;card.dataset.day=day;
+      card.style.left=`${101+column*(taskWidth+15)}px`;card.style.top=`${dayIndex*rowHeight+5}px`;
+      card.style.height=`${rowHeight-10}px`;card.style.width=`${taskWidth}px`;
+      card.title=`每日 · ${t.title}\n${day}${t.time?' '+t.time+' 前完成':''}\n${done?'已完成':'待完成'}${t.details?'\n'+t.details:''}\n双击编辑每日任务`;
+      card.setAttribute('aria-label',`每日任务 ${t.title}，${day}，${done?'已完成':'待完成'}`);
+      card.append(make('span','span-title',`${done?'✓':'↻'} ${t.title}`));
+      if(t.details)card.append(make('span','span-details',t.details));
+      card.onclick=()=>showDailyView(true);card.ondblclick=()=>showDailyEditor(t.id);
+      timeline.append(card);
+    }
   });
 }
 function render() { renderDaily(); $('summary').textContent=`${new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'})}  ·  ${state.tasks.filter(t=>!t.done).length} 项待办 / ${state.tasks.filter(t=>t.done).length} 项完成`;renderList();renderTimeline(); }
@@ -97,10 +115,10 @@ $('close-editor').onclick=$('cancel-editor').onclick=()=>{if(!busy)$('editor').c
 $('editor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});
 $('task-form').onsubmit=async e=>{
   e.preventDefault();if(busy)return;
-  const old=state.tasks.find(t=>t.id===editing),task={id:old?.id||crypto.randomUUID(),title:$('title').value.trim(),start:$('start').value,due:$('due').value,done:old?.done||false};
+  const old=state.tasks.find(t=>t.id===editing),task={id:old?.id||crypto.randomUUID(),title:$('title').value.trim(),details:$('details').value.trim(),start:$('start').value,due:$('due').value,done:old?.done||false};
   try{validateTasks([task]);}catch(e){$('form-error').textContent=e.message;return;}
   const next=old?state.tasks.map(t=>t.id===old.id?task:t):[...state.tasks,task];
-  if(await commit(next)){selected=task.id;$('editor').close();const [year,m]=task.start.split('-').map(Number);month=new Date(year,m-1,1);filter='all';document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('active',b.dataset.filter===filter));render();const span=monthSpan(task,month.getFullYear(),month.getMonth());$('timeline-scroll').scrollTo({top:Math.max(0,span.first-1)*rowHeight,left:Math.max(0,next.filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===task.id))*(taskWidth+15)});}
+  if(await commit(next)){selected=task.id;$('editor').close();const [year,m]=task.start.split('-').map(Number);month=new Date(year,m-1,1);filter='all';document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('active',b.dataset.filter===filter));render();const span=monthSpan(task,month.getFullYear(),month.getMonth());$('timeline-scroll').scrollTo({top:Math.max(0,span.first-1)*rowHeight,left:(state.dailyTasks.length+Math.max(0,next.filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===task.id)))*(taskWidth+15)});}
   else $('form-error').textContent='尚未保存，请检查下方提示后重试。';
 };
 $('delete-dialog').addEventListener('close',async()=>{if($('delete-dialog').returnValue!=='delete')return;const id=$('delete-dialog').dataset.id;if(await commit(state.tasks.filter(t=>t.id!==id))){if(selected===id)selected=null;render();}});
@@ -161,7 +179,7 @@ function renderDaily() {
     const done = dailyDone(t,day), card = make('article','daily-card'+(done?' completed':''));
     card.setAttribute('role','listitem');
     const label = make('label','daily-check'), check = make('input'); check.type='checkbox'; check.checked=done; check.disabled=busy||state.readOnly;
-    label.append(check,make('span','',t.title));card.append(label);
+    label.append(check,make('span','',t.title));card.append(label);if(t.details)card.append(make('p','list-details',t.details));
     check.onchange=async()=>{
       if(busy||state.readOnly){check.checked=done;return;}
       const today=localDate();
@@ -185,7 +203,7 @@ async function commitDaily(next) {
   try {
     next=validateDailyTasks(next);
     const result=await request('/api/daily',{revision:state.revision,dailyTasks:next});
-    state.dailyTasks=next;state.revision=result.revision;
+    state.dailyTasks=next;state.revision=result.revision;renderTimeline();
     $('status').classList.remove('error');$('status').textContent='每日任务已保存';return true;
   } catch(e) {
     notify(e.message,true);
@@ -197,7 +215,7 @@ function showDailyEditor(id=null) {
   if(busy||state.readOnly)return;
   dailyEditing=id;const task=state.dailyTasks.find(t=>t.id===id);
   $('daily-editor-title').textContent=task?'编辑每日任务':'添加每日任务';
-  $('daily-title').value=task?.title||'';$('daily-time').value=task?.time||'';$('daily-error').textContent='';
+  $('daily-title').value=task?.title||'';$('daily-details').value=task?.details||'';$('daily-time').value=task?.time||'';$('daily-error').textContent='';
   $('daily-editor').showModal();$('daily-title').focus();
 }
 $('daily-add').onclick=()=>showDailyEditor();
@@ -206,7 +224,7 @@ $('daily-editor').addEventListener('cancel',e=>{if(busy)e.preventDefault();});
 $('daily-form').onsubmit=async e=>{
   e.preventDefault();if(busy)return;
   const old=state.dailyTasks.find(t=>t.id===dailyEditing);
-  const task={id:old?.id||crypto.randomUUID(),title:$('daily-title').value.trim(),time:$('daily-time').value,completedDates:old?.completedDates||[]};
+  const task={id:old?.id||crypto.randomUUID(),title:$('daily-title').value.trim(),details:$('daily-details').value.trim(),time:$('daily-time').value,completedDates:old?.completedDates||[]};
   try{validateDailyTasks([task]);}catch(error){$('daily-error').textContent=error.message;return;}
   if(await commitDaily(old?state.dailyTasks.map(t=>t.id===old.id?task:t):[...state.dailyTasks,task])){$('daily-editor').close();renderDaily();}
   else $('daily-error').textContent='未保存，请检查下方提示后重试。';

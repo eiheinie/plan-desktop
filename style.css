@@ -102,3 +102,16 @@ dialog{width:630px}
 .daily-card.completed .daily-check span{color:#7a8590;text-decoration:line-through}
 .daily-note{font-size:14px;color:#777f90;line-height:1.5;margin-top:10px}.daily-note.late{color:#ad654d}
 .daily-time-field{margin-top:22px}#daily-delete-title{overflow-wrap:anywhere;margin-top:16px;line-height:1.6}
+
+.details-field{margin-top:18px}.field textarea{display:block;margin-top:9px;width:100%;resize:vertical;min-height:84px;max-height:220px;border:1px solid #e3dfed;border-radius:9px;padding:12px;font:inherit;font-size:16px;color:#444059;background:#fdfcfe}
+textarea:focus-visible{outline:3px solid #b2a9f1;outline-offset:3px}
+.list-details{font-size:14px;line-height:1.55;color:#737086;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.span-details{font-size:13px;line-height:1.35;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;max-width:100%;flex-shrink:0}
+.span-card.short.with-details{padding:4px 7px;gap:0}
+.span-card.short.with-details .span-title{line-height:23px;-webkit-line-clamp:1}
+.span-card.short.with-details .span-details{-webkit-line-clamp:1;line-height:18px}
+.timeline.compact .span-card.short.with-details{padding:0 4px;gap:0}
+.timeline.compact .span-card.short.with-details .span-title{font-size:13px;line-height:16px}
+.timeline.compact .span-card.short.with-details .span-details{font-size:11px;line-height:13px}
+.daily-span{border-top-style:dashed}.daily-span.completed .span-title{text-decoration:line-through}
+dialog{max-height:calc(100vh - 32px);overflow:auto}
