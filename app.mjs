@@ -36,7 +36,7 @@ function choose(id, reveal = false) {
   if (reveal) { const t = state.tasks.find(t=>t.id===id); if (t && !monthSpan(t,month.getFullYear(),month.getMonth())) { const [y,m]=t.start.slice(0,7).split('-').map(Number); month = new Date(y,m-1,1); } }
   document.querySelectorAll('.task-card').forEach(c=>c.classList.toggle('selected',c.dataset.id===id));
   renderTimeline();
-  if (reveal) { const t = state.tasks.find(t=>t.id===id); const span = t && monthSpan(t,month.getFullYear(),month.getMonth()); if (span) $('timeline-scroll').scrollTo({ top: Math.max(0,span.first-1)*rowHeight, left: ((state.dailyTasks||[]).length+Math.max(0,filteredTasks().filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===id)))*(taskWidth+15), behavior:'smooth' }); }
+  if (reveal) { const t = state.tasks.find(t=>t.id===id); const span = t && monthSpan(t,month.getFullYear(),month.getMonth()); if (span) $('timeline-scroll').scrollTo({ top: Math.max(0,span.first-1)*rowHeight, left: (Math.max(0,filteredTasks().filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===id)))*(taskWidth+15), behavior:'smooth' }); }
 }
 function showEditor(id = null) {
   if (busy || state.readOnly) return;
@@ -75,37 +75,22 @@ function renderTimeline() {
   const timeline=$('timeline'),year=month.getFullYear(),m=month.getMonth(),days=new Date(year,m+1,0).getDate();
   const visible=filteredTasks().filter(t=>monthSpan(t,year,m)), daily=state.dailyTasks||[];
   $('month-label').textContent=`${year} 年 ${m+1} 月`;$('month-count').textContent=`计划 ${visible.length} 项 · 每日 ${daily.length} 项`;
-  timeline.replaceChildren();timeline.style.height=`${days*rowHeight}px`;timeline.style.width=`${Math.max(510,110+(visible.length+daily.length)*(taskWidth+15))}px`;timeline.classList.toggle('compact',rowHeight===42);
+  timeline.replaceChildren();timeline.style.height=`${days*rowHeight}px`;timeline.style.width=`${Math.max(510,110+visible.length*(taskWidth+15))}px`;timeline.classList.toggle('compact',rowHeight===42);
   for(let i=0;i<days;i++){
     const date=new Date(year,m,i+1),today=localDate(date)===localDate(),weekend=[0,6].includes(date.getDay());
     const row=make('div','date-row'+(today?' today':'')+(weekend?' weekend':''));row.style.top=`${i*rowHeight}px`;row.style.height=`${rowHeight}px`;
     const cell=make('div','date-cell');cell.append(make('div','date-num',String(i+1).padStart(2,'0')),make('div','date-week',today?'今天':date.toLocaleDateString('zh-CN',{weekday:'short'})));row.append(cell);timeline.append(row);
   }
-  if(!visible.length&&!daily.length)timeline.append(make('div','timeline-empty',state.tasks.length?'本月没有符合筛选条件的任务。\n可以切换月份，或添加新的计划。':'把任务写下来，时间就有了形状。\n添加第一个任务，在这里看见它的跨度。'));
+  if(!visible.length)timeline.append(make('div','timeline-empty',state.tasks.length?'本月没有符合筛选条件的任务。\n可以切换月份，或添加新的计划。':'把任务写下来，时间就有了形状。\n添加第一个任务，在这里看见它的跨度。'));
   visible.forEach((t,i)=>{
     const span=monthSpan(t,year,m),height=(span.last-span.first+1)*rowHeight-10;
     const card=make('button','span-card'+(selected===t.id?' selected':'')+(t.done?' completed':'')+(height<90?' short':'')+(span.before?' continues-before':'')+(span.after?' continues-after':''));
-    card.type='button';card.dataset.taskId=t.id;paintTask(card,state.tasks.indexOf(t));card.style.left=`${101+(i+daily.length)*(taskWidth+15)}px`;card.style.top=`${span.first*rowHeight+5}px`;card.style.height=`${height}px`;card.style.width=`${taskWidth}px`;card.title=`${t.title}${t.details?"\n"+t.details:""}\n开始：${t.start.replace('T',' ')}\n截止：${t.due.replace('T',' ')}`;card.setAttribute('aria-label',`${t.title}，${t.start.slice(0,10)} 至 ${t.due.slice(0,10)}`);
+    card.type='button';card.dataset.taskId=t.id;paintTask(card,state.tasks.indexOf(t));card.style.left=`${101+i*(taskWidth+15)}px`;card.style.top=`${span.first*rowHeight+5}px`;card.style.height=`${height}px`;card.style.width=`${taskWidth}px`;card.title=`${t.title}${t.details?"\n"+t.details:""}\n开始：${t.start.replace('T',' ')}\n截止：${t.due.replace('T',' ')}`;card.setAttribute('aria-label',`${t.title}，${t.start.slice(0,10)} 至 ${t.due.slice(0,10)}`);
     card.append(make('span','span-title',t.title));if(t.details){card.classList.add('with-details');card.append(make('span','span-details',t.details));}if(height>100)card.append(make('span','span-dates',`${span.before?'↑ ':''}${dateLabel(t.start)} — ${dateLabel(t.due)}${span.after?' ↓':''}`));if(height>150)card.append(make('span','span-time',t.done?'✓ 已完成':`截止 ${t.due.slice(11)}`));
     card.onclick=()=>{showDailyView(false);selected=t.id;renderList();timeline.querySelectorAll('.span-card').forEach(e=>e.classList.toggle('selected',e.dataset.taskId===t.id));const row=[...$('task-list').children].find(e=>e.dataset.id===t.id);row?.scrollIntoView({block:'nearest',behavior:'smooth'});};card.ondblclick=()=>showEditor(t.id);timeline.append(card);
   });
 
-  daily.forEach((t,column)=>{
-    for(let dayIndex=0;dayIndex<days;dayIndex++){
-      const day=localDate(new Date(year,m,dayIndex+1)),done=dailyDone(t,day);
-      if(filter==='done'&&!done||filter==='active'&&done)continue;
-      const card=make('button','span-card daily-span short'+(t.details?' with-details':'')+(done?' completed':''));
-      paintTask(card,column);card.type='button';card.dataset.dailyId=t.id;card.dataset.day=day;
-      card.style.left=`${101+column*(taskWidth+15)}px`;card.style.top=`${dayIndex*rowHeight+5}px`;
-      card.style.height=`${rowHeight-10}px`;card.style.width=`${taskWidth}px`;
-      card.title=`每日 · ${t.title}\n${day}${t.time?' '+t.time+' 前完成':''}\n${done?'已完成':'待完成'}${t.details?'\n'+t.details:''}\n双击编辑每日任务`;
-      card.setAttribute('aria-label',`每日任务 ${t.title}，${day}，${done?'已完成':'待完成'}`);
-      card.append(make('span','span-title',`${done?'✓':'↻'} ${t.title}`));
-      if(t.details)card.append(make('span','span-details',t.details));
-      card.onclick=()=>showDailyView(true);card.ondblclick=()=>showDailyEditor(t.id);
-      timeline.append(card);
-    }
-  });
+  renderDailyRail();
 }
 function render() { renderDaily(); $('summary').textContent=`${new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'})}  ·  ${state.tasks.filter(t=>!t.done).length} 项待办 / ${state.tasks.filter(t=>t.done).length} 项完成`;renderList();renderTimeline(); }
 function jumpToday(){month=new Date(new Date().getFullYear(),new Date().getMonth(),1);renderTimeline();$('timeline-scroll').scrollTo({top:Math.max(0,new Date().getDate()-2)*rowHeight,left:0});}
@@ -118,7 +103,7 @@ $('task-form').onsubmit=async e=>{
   const old=state.tasks.find(t=>t.id===editing),task={id:old?.id||crypto.randomUUID(),title:$('title').value.trim(),details:$('details').value.trim(),start:$('start').value,due:$('due').value,done:old?.done||false};
   try{validateTasks([task]);}catch(e){$('form-error').textContent=e.message;return;}
   const next=old?state.tasks.map(t=>t.id===old.id?task:t):[...state.tasks,task];
-  if(await commit(next)){selected=task.id;$('editor').close();const [year,m]=task.start.split('-').map(Number);month=new Date(year,m-1,1);filter='all';document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('active',b.dataset.filter===filter));render();const span=monthSpan(task,month.getFullYear(),month.getMonth());$('timeline-scroll').scrollTo({top:Math.max(0,span.first-1)*rowHeight,left:(state.dailyTasks.length+Math.max(0,next.filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===task.id)))*(taskWidth+15)});}
+  if(await commit(next)){selected=task.id;$('editor').close();const [year,m]=task.start.split('-').map(Number);month=new Date(year,m-1,1);filter='all';document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('active',b.dataset.filter===filter));render();const span=monthSpan(task,month.getFullYear(),month.getMonth());$('timeline-scroll').scrollTo({top:Math.max(0,span.first-1)*rowHeight,left:(Math.max(0,next.filter(t=>monthSpan(t,month.getFullYear(),month.getMonth())).findIndex(t=>t.id===task.id)))*(taskWidth+15)});}
   else $('form-error').textContent='尚未保存，请检查下方提示后重试。';
 };
 $('delete-dialog').addEventListener('close',async()=>{if($('delete-dialog').returnValue!=='delete')return;const id=$('delete-dialog').dataset.id;if(await commit(state.tasks.filter(t=>t.id!==id))){if(selected===id)selected=null;render();}});
@@ -156,6 +141,49 @@ document.addEventListener('pointerup',async e=>{
 document.addEventListener('pointercancel',()=>{pointerDrag=null;$('task-list').querySelectorAll('.drop-before,.drop-after,.dragging').forEach(c=>c.classList.remove('drop-before','drop-after','dragging'));});
 window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='n'){e.preventDefault();if(!$('editor').open&&!$('daily-editor').open){if(dailyView)showDailyEditor();else showEditor();}}});
 let dailyView = false, dailyEditing = null, displayedDay = localDate();
+
+let dailyRailWidth=Number(localStorage.getItem('plan-daily-rail-width')??210);
+if(!Number.isFinite(dailyRailWidth))dailyRailWidth=210;
+function setDailyRailWidth(value,save=false){
+  const max=Math.max(0,Math.min(380,$('timeline-body').clientWidth-160));
+  dailyRailWidth=Math.max(0,Math.min(max,value));
+  $('daily-rail').style.width=`${dailyRailWidth}px`;
+  $('daily-rail').inert=dailyRailWidth<30;
+  $('daily-divider').setAttribute('aria-valuenow',String(Math.round(dailyRailWidth)));
+  $('daily-divider').setAttribute('aria-valuemax',String(max));
+  if(save)localStorage.setItem('plan-daily-rail-width',String(dailyRailWidth));
+}
+let railDrag=null;
+$('daily-divider').onpointerdown=e=>{
+  if(e.button!==0)return;e.preventDefault();railDrag={x:e.clientX,width:dailyRailWidth};
+  e.currentTarget.setPointerCapture(e.pointerId);document.body.classList.add('resizing-daily');
+};
+$('daily-divider').onpointermove=e=>{if(railDrag)setDailyRailWidth(railDrag.width+e.clientX-railDrag.x);};
+function endRailDrag(){if(!railDrag)return;railDrag=null;document.body.classList.remove('resizing-daily');setDailyRailWidth(dailyRailWidth<30?0:dailyRailWidth,true);}
+$('daily-divider').onpointerup=endRailDrag;$('daily-divider').onpointercancel=endRailDrag;$('daily-divider').onlostpointercapture=endRailDrag;
+$('daily-divider').onkeydown=e=>{
+  if(!['ArrowLeft','ArrowRight','Home','End','Enter'].includes(e.key))return;e.preventDefault();
+  setDailyRailWidth(e.key==='Home'?0:e.key==='End'?380:e.key==='Enter'?(dailyRailWidth?0:210):dailyRailWidth+(e.key==='ArrowLeft'?-20:20),true);
+};
+$('daily-divider').ondblclick=()=>setDailyRailWidth(dailyRailWidth?0:210,true);
+window.addEventListener('resize',()=>setDailyRailWidth(dailyRailWidth));
+function renderDailyRail(){
+  const list=$('daily-rail-list'),tasks=state.dailyTasks||[];list.replaceChildren();
+  $('daily-rail-count').textContent=`今天 ${tasks.filter(t=>dailyDone(t)).length}/${tasks.length}`;
+  if(!tasks.length)list.append(make('p','daily-rail-empty','每日任务只在这里显示一次。'));
+  for(const [i,t] of tasks.entries()){
+    const done=dailyDone(t),card=make('button','fixed-daily-card'+(done?' completed':''));
+    card.type='button';paintTask(card,i);card.dataset.dailyId=t.id;
+    card.setAttribute('aria-label',`编辑每日任务 ${t.title}`);
+    card.title=`${t.title}${t.details?'\n'+t.details:''}\n点击编辑`;
+    card.append(make('span','fixed-daily-title',t.title));
+    if(t.details)card.append(make('span','fixed-daily-details',t.details));
+    card.append(make('span','fixed-daily-status',done?'今天已完成':t.time?`每天 ${t.time} 前完成`:'今天待完成'));
+    card.onclick=()=>{showDailyView(true);showDailyEditor(t.id);};list.append(card);
+  }
+  setDailyRailWidth(dailyRailWidth);
+}
+
 function showDailyView(enabled) {
   dailyView = enabled;
   $('plan-panel').hidden = enabled; $('daily-panel').hidden = !enabled;

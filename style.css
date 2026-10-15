@@ -115,3 +115,19 @@ textarea:focus-visible{outline:3px solid #b2a9f1;outline-offset:3px}
 .timeline.compact .span-card.short.with-details .span-details{font-size:11px;line-height:13px}
 .daily-span{border-top-style:dashed}.daily-span.completed .span-title{text-decoration:line-through}
 dialog{max-height:calc(100vh - 32px);overflow:auto}
+
+.timeline-body{display:flex;flex:1;min-height:0;min-width:0;overflow:hidden}
+.daily-rail{flex:none;overflow:hidden;background:#faf9fd;min-width:0}
+.daily-rail-inner{height:100%;padding:16px 12px;display:flex;flex-direction:column;min-width:145px}
+.daily-rail-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;color:#6a5b8d;font-size:15px;margin-bottom:12px;flex-shrink:0}
+.daily-rail-heading span{font-size:13px;color:#847a96}
+.daily-rail-list{display:flex;flex-direction:column;gap:12px;overflow:auto;min-height:0;padding:3px;scrollbar-width:thin;margin-block:auto;flex-shrink:1}
+.fixed-daily-card{flex-shrink:0;display:flex;flex-direction:column;gap:7px;text-align:left;width:100%;padding:13px 11px;border:1px solid color-mix(in srgb,var(--task-color) 35%,transparent);border-left:3px solid var(--task-color);border-radius:10px;color:var(--task-color);background:var(--task-bg)}
+.fixed-daily-title{font-size:17px;line-height:1.45;font-weight:600;overflow-wrap:anywhere}
+.fixed-daily-details{font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+.fixed-daily-status{font-size:12px;line-height:1.5;opacity:.85}.fixed-daily-card.completed{background:#f1f6f3;color:#4f7866;border-color:#afc8bc}.fixed-daily-card.completed .fixed-daily-title{text-decoration:line-through}
+.daily-divider{width:9px;flex:none;cursor:col-resize;touch-action:none;position:relative;background:white;outline-offset:-2px}
+.daily-divider:before{content:"";position:absolute;top:0;bottom:0;left:4px;width:1px;background:#dcd7e9}
+.daily-divider span{position:absolute;top:50%;left:2px;width:5px;height:34px;border-radius:4px;background:#b9aed7;transform:translateY(-50%)}
+.daily-divider:hover:before{background:#9584c7}.daily-divider:focus-visible{outline:2px solid #9584c7}
+.timeline-body>.timeline-scroll{min-width:0}.resizing-daily{cursor:col-resize;user-select:none}.daily-rail-empty{font-size:14px;line-height:1.7;color:#8b809c}
