@@ -131,3 +131,10 @@ dialog{max-height:calc(100vh - 32px);overflow:auto}
 .daily-divider span{position:absolute;top:50%;left:2px;width:5px;height:34px;border-radius:4px;background:#b9aed7;transform:translateY(-50%)}
 .daily-divider:hover:before{background:#9584c7}.daily-divider:focus-visible{outline:2px solid #9584c7}
 .timeline-body>.timeline-scroll{min-width:0}.resizing-daily{cursor:col-resize;user-select:none}.daily-rail-empty{font-size:14px;line-height:1.7;color:#8b809c}
+
+/* Unfinished tasks past their deadline remain visibly distinct from completed work. */
+.task-card.overdue,.span-card.overdue,.daily-card.overdue,.fixed-daily-card.overdue{--task-color:#b42332!important;--task-bg:#fff0f1!important;background:#fff0f1;border-color:#e6a0a8;color:#b42332}
+.task-card.overdue.selected{border-color:#c94352;background:#ffeaed}
+.overdue .task-title,.overdue .task-date,.overdue .task-tag,.overdue .list-details,.overdue .daily-note,.overdue .daily-check,.overdue .fixed-daily-status{color:#b42332}
+.overdue .span-details,.overdue .span-dates,.overdue .span-time{color:#a52a37}
+.overdue .card-actions{border-top-color:#edc4c9}.overdue .card-actions button{color:#a52a37}

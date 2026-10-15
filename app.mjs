@@ -1,4 +1,4 @@
-import { localDate, localTime, monthSpan, reorder, validateTasks, validateDailyTasks, dailyDone, toggleDaily } from './model.mjs';
+import { localDate, localTime, monthSpan, reorder, validateTasks, validateDailyTasks, dailyDone, toggleDaily, isOverdue, isDailyOverdue } from './model.mjs';
 const $ = id => document.getElementById(id);
 const palette = [['#7360b0','#f0edf9'],['#327e78','#eaf5f2'],['#936d3c','#faf2e8'],['#477ba5','#edf4fa'],['#915b7d','#f7edf4'],['#627f43','#f2f5eb']];
 let state = { tasks: [], dailyTasks: [], revision: 0, token: '', readOnly: false }, month = new Date(new Date().getFullYear(), new Date().getMonth(), 1), selected = null, editing = null, filter = 'all', busy = false, dragId = null, toastTimer, pointerDrag = null, suppressClickUntil = 0;
@@ -51,9 +51,9 @@ function renderList() {
   $('empty-list').querySelector('h3').textContent = state.tasks.length ? '这里暂时没有任务' : '从一件小事开始';
   container.style.display = tasks.length ? '' : 'none';
   for (const t of tasks) {
-    const card = make('article', 'task-card' + (selected===t.id?' selected':'') + (t.done?' completed':''));
+    const card = make('article', 'task-card' + (selected===t.id?' selected':'') + (t.done?' completed':'')+(isOverdue(t)?' overdue':''));
     card.dataset.id = t.id; card.tabIndex = 0; card.draggable = false; card.setAttribute('role','listitem'); card.setAttribute('aria-label',t.title); paintTask(card,state.tasks.indexOf(t));
-    const top=make('div','task-card-top'); const status=t.done?'已完成':t.due<localTime()?'已逾期':t.start>localTime()?'未开始':'进行中'; top.append(make('span','task-tag',status),make('span','grip','⠿')); card.append(top,make('h3','task-title',t.title),make('p','task-date',`${dateLabel(t.start)} ${t.start.slice(11)}  →  ${dateLabel(t.due)} ${t.due.slice(11)}`));
+    const top=make('div','task-card-top'); const status=t.done?'已完成':isOverdue(t)?'已逾期':t.start>localTime()?'未开始':'进行中'; top.append(make('span','task-tag',status),make('span','grip','⠿')); card.append(top,make('h3','task-title',t.title),make('p','task-date',`${dateLabel(t.start)} ${t.start.slice(11)}  →  ${dateLabel(t.due)} ${t.due.slice(11)}`));
     if(t.details)card.append(make('p','list-details',t.details));
     const actions = make('div','card-actions'); const complete=make('button','complete',t.done?'↶ 恢复任务':'○ 标记完成'),edit=make('button','','编辑'),remove=make('button','','删除');
     complete.type=edit.type=remove.type='button'; complete.setAttribute('aria-label',(t.done?'恢复 ':'完成 ')+t.title); edit.setAttribute('aria-label','编辑 '+t.title);remove.setAttribute('aria-label','删除 '+t.title);
@@ -84,9 +84,9 @@ function renderTimeline() {
   if(!visible.length)timeline.append(make('div','timeline-empty',state.tasks.length?'本月没有符合筛选条件的任务。\n可以切换月份，或添加新的计划。':'把任务写下来，时间就有了形状。\n添加第一个任务，在这里看见它的跨度。'));
   visible.forEach((t,i)=>{
     const span=monthSpan(t,year,m),height=(span.last-span.first+1)*rowHeight-10;
-    const card=make('button','span-card'+(selected===t.id?' selected':'')+(t.done?' completed':'')+(height<90?' short':'')+(span.before?' continues-before':'')+(span.after?' continues-after':''));
+    const card=make('button','span-card'+(selected===t.id?' selected':'')+(t.done?' completed':'')+(isOverdue(t)?' overdue':'')+(height<90?' short':'')+(span.before?' continues-before':'')+(span.after?' continues-after':''));
     card.type='button';card.dataset.taskId=t.id;paintTask(card,state.tasks.indexOf(t));card.style.left=`${101+i*(taskWidth+15)}px`;card.style.top=`${span.first*rowHeight+5}px`;card.style.height=`${height}px`;card.style.width=`${taskWidth}px`;card.title=`${t.title}${t.details?"\n"+t.details:""}\n开始：${t.start.replace('T',' ')}\n截止：${t.due.replace('T',' ')}`;card.setAttribute('aria-label',`${t.title}，${t.start.slice(0,10)} 至 ${t.due.slice(0,10)}`);
-    card.append(make('span','span-title',t.title));if(t.details){card.classList.add('with-details');card.append(make('span','span-details',t.details));}if(height>100)card.append(make('span','span-dates',`${span.before?'↑ ':''}${dateLabel(t.start)} — ${dateLabel(t.due)}${span.after?' ↓':''}`));if(height>150)card.append(make('span','span-time',t.done?'✓ 已完成':`截止 ${t.due.slice(11)}`));
+    card.append(make('span','span-title',t.title));if(t.details){card.classList.add('with-details');card.append(make('span','span-details',t.details));}if(height>100)card.append(make('span','span-dates',`${span.before?'↑ ':''}${dateLabel(t.start)} — ${dateLabel(t.due)}${span.after?' ↓':''}`));if(height>150)card.append(make('span','span-time',t.done?'✓ 已完成':`${isOverdue(t)?'已逾期 · ':''}截止 ${t.due.slice(11)}`));
     card.onclick=()=>{showDailyView(false);selected=t.id;renderList();timeline.querySelectorAll('.span-card').forEach(e=>e.classList.toggle('selected',e.dataset.taskId===t.id));const row=[...$('task-list').children].find(e=>e.dataset.id===t.id);row?.scrollIntoView({block:'nearest',behavior:'smooth'});};card.ondblclick=()=>showEditor(t.id);timeline.append(card);
   });
 
@@ -140,7 +140,7 @@ document.addEventListener('pointerup',async e=>{
 });
 document.addEventListener('pointercancel',()=>{pointerDrag=null;$('task-list').querySelectorAll('.drop-before,.drop-after,.dragging').forEach(c=>c.classList.remove('drop-before','drop-after','dragging'));});
 window.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key.toLowerCase()==='n'){e.preventDefault();if(!$('editor').open&&!$('daily-editor').open){if(dailyView)showDailyEditor();else showEditor();}}});
-let dailyView = false, dailyEditing = null, displayedDay = localDate();
+let dailyView = false, dailyEditing = null, displayedDay = localDate(), displayedMinute = localTime();
 
 let dailyRailWidth=Number(localStorage.getItem('plan-daily-rail-width')??210);
 if(!Number.isFinite(dailyRailWidth))dailyRailWidth=210;
@@ -172,13 +172,13 @@ function renderDailyRail(){
   $('daily-rail-count').textContent=`今天 ${tasks.filter(t=>dailyDone(t)).length}/${tasks.length}`;
   if(!tasks.length)list.append(make('p','daily-rail-empty','每日任务只在这里显示一次。'));
   for(const [i,t] of tasks.entries()){
-    const done=dailyDone(t),card=make('button','fixed-daily-card'+(done?' completed':''));
+    const done=dailyDone(t),card=make('button','fixed-daily-card'+(done?' completed':'')+(isDailyOverdue(t)?' overdue':''));
     card.type='button';paintTask(card,i);card.dataset.dailyId=t.id;
     card.setAttribute('aria-label',`编辑每日任务 ${t.title}`);
     card.title=`${t.title}${t.details?'\n'+t.details:''}\n点击编辑`;
     card.append(make('span','fixed-daily-title',t.title));
     if(t.details)card.append(make('span','fixed-daily-details',t.details));
-    card.append(make('span','fixed-daily-status',done?'今天已完成':t.time?`每天 ${t.time} 前完成`:'今天待完成'));
+    card.append(make('span','fixed-daily-status',done?'今天已完成':isDailyOverdue(t)?`已逾期 · 截止 ${t.time}`:t.time?`每天 ${t.time} 前完成`:'今天待完成'));
     card.onclick=()=>{showDailyView(true);showDailyEditor(t.id);};list.append(card);
   }
   setDailyRailWidth(dailyRailWidth);
@@ -204,7 +204,7 @@ function renderDaily() {
   $('daily-add').disabled = busy || state.readOnly;
   list.replaceChildren();
   for (const t of tasks) {
-    const done = dailyDone(t,day), card = make('article','daily-card'+(done?' completed':''));
+    const done = dailyDone(t,day), card = make('article','daily-card'+(done?' completed':'')+(isDailyOverdue(t)?' overdue':''));
     card.setAttribute('role','listitem');
     const label = make('label','daily-check'), check = make('input'); check.type='checkbox'; check.checked=done; check.disabled=busy||state.readOnly;
     label.append(check,make('span','',t.title));card.append(label);if(t.details)card.append(make('p','list-details',t.details));
@@ -215,7 +215,7 @@ function renderDaily() {
       await commitDaily(state.dailyTasks.map(x=>x.id===t.id?toggleDaily(x,today):x));
       renderDaily();
     };
-    const late = !done && t.time && localTime().slice(11)>t.time;
+    const late = isDailyOverdue(t);
     card.append(make('p','daily-note'+(late?' late':''),done?'✓ 今天已完成':t.time?`每天 ${t.time} 前完成${late?' · 今日已超时':''}`:'每天一次 · 今天待完成'));
     const actions=make('div','card-actions'),edit=make('button','','编辑'),remove=make('button','','删除');
     edit.type=remove.type='button';edit.disabled=remove.disabled=busy||state.readOnly;
@@ -262,8 +262,8 @@ $('daily-delete').addEventListener('close',async()=>{
   if(await commitDaily(state.dailyTasks.filter(t=>t.id!==$('daily-delete').dataset.id)))renderDaily();
 });
 function refreshDailyDate() {
-  if(document.hidden||busy)return;
-  if(displayedDay!==localDate()){displayedDay=localDate();render();}else if(dailyView)renderDaily();
+  if(document.hidden||busy||pointerDrag||railDrag)return;
+  if(displayedDay!==localDate()||displayedMinute!==localTime()){displayedDay=localDate();displayedMinute=localTime();render();}else {renderList();renderTimeline();if(dailyView)renderDaily();}
 }
 setInterval(refreshDailyDate,30000);
 window.addEventListener('focus',refreshDailyDate);

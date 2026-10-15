@@ -77,3 +77,10 @@ export function dailyDone(task, day = localDate()) { return task.completedDates.
 export function toggleDaily(task, day = localDate()) {
   return { ...task, completedDates: dailyDone(task, day) ? task.completedDates.filter(d => d !== day) : [...task.completedDates, day] };
 }
+
+export function isOverdue(task, now = new Date()) {
+  return !task.done && new Date(task.due).getTime() < now.getTime();
+}
+export function isDailyOverdue(task, now = new Date()) {
+  return !!task.time && !dailyDone(task, localDate(now)) && new Date(`${localDate(now)}T${task.time}`).getTime() < now.getTime();
+}
