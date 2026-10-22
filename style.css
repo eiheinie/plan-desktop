@@ -138,3 +138,7 @@ dialog{max-height:calc(100vh - 32px);overflow:auto}
 .overdue .task-title,.overdue .task-date,.overdue .task-tag,.overdue .list-details,.overdue .daily-note,.overdue .daily-check,.overdue .fixed-daily-status{color:#b42332}
 .overdue .span-details,.overdue .span-dates,.overdue .span-time{color:#a52a37}
 .overdue .card-actions{border-top-color:#edc4c9}.overdue .card-actions button{color:#a52a37}
+
+.span-card{touch-action:pan-y;user-select:none;cursor:grab}
+.span-card.dragging-x{opacity:.45;cursor:grabbing}
+.span-card.drop-left{box-shadow:-4px 0 0 #7065da}.span-card.drop-right{box-shadow:4px 0 0 #7065da}

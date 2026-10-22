@@ -84,3 +84,11 @@ export function isOverdue(task, now = new Date()) {
 export function isDailyOverdue(task, now = new Date()) {
   return !!task.time && !dailyDone(task, localDate(now)) && new Date(`${localDate(now)}T${task.time}`).getTime() < now.getTime();
 }
+
+// Insert only the new/rescheduled task; never reorder the existing manual sequence.
+export function insertTaskByStart(tasks, task) {
+  const next=tasks.filter(t=>t.id!==task.id);
+  const index=next.findIndex(t=>t.start>task.start);
+  next.splice(index<0?next.length:index,0,task);
+  return next;
+}
