@@ -36,8 +36,8 @@ export function createPlanServer({ root = ROOT, dataDir = path.join(root, 'data'
     }
   }
   const token = crypto.randomBytes(32).toString('hex');
-  const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
-  const allowed = new Set(['index.html', 'app.mjs', 'model.mjs', 'style.css', 'icon.svg', 'plan.ico']);
+  const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.png': 'image/png' };
+  const allowed = new Set(['index.html', 'app.mjs', 'model.mjs', 'style.css', 'icon.svg', 'plan.ico', 'theme-warm.png']);
   const server = http.createServer(async (req, res) => {
     const origin = `http://127.0.0.1:${server.address().port}`;
     res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY');

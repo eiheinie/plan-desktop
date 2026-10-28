@@ -22,7 +22,7 @@ async function main() {
     else throw new Error('未知选项：' + args[i]);
   }
   destination = path.resolve(destination);
-  const files = ['index.html','app.mjs','model.mjs','server.mjs','style.css','icon.svg','plan.ico','README.md','package.json'];
+  const files = ['index.html','app.mjs','model.mjs','server.mjs','style.css','icon.svg','plan.ico','theme-warm.png','README.md','package.json'];
   for (const file of files) if (!fs.existsSync(path.join(source, file))) throw new Error('发布包缺少文件：' + file);
   fs.mkdirSync(path.join(destination, 'runtime'), { recursive: true });
   const executable = path.join(destination, 'runtime', 'node.exe');

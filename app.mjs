@@ -1,5 +1,12 @@
 import { localDate, localTime, monthSpan, reorder, insertTaskByStart, validateTasks, validateDailyTasks, dailyDone, toggleDaily, isOverdue, isDailyOverdue } from './model.mjs';
 const $ = id => document.getElementById(id);
+function applyTheme(theme){
+  document.documentElement.dataset.theme=theme;
+  $('theme-toggle').textContent=theme==='warm'?'主题：暖橙小憩':'主题：经典紫';
+  $('theme-toggle').setAttribute('aria-label',theme==='warm'?'当前暖橙小憩，点击切换经典紫':'当前经典紫，点击切换暖橙小憩');
+}
+applyTheme(localStorage.getItem('plan-theme')==='classic'?'classic':'warm');
+$('theme-toggle').onclick=()=>{const theme=document.documentElement.dataset.theme==='warm'?'classic':'warm';applyTheme(theme);localStorage.setItem('plan-theme',theme);};
 const palette = [['#7360b0','#f0edf9'],['#327e78','#eaf5f2'],['#936d3c','#faf2e8'],['#477ba5','#edf4fa'],['#915b7d','#f7edf4'],['#627f43','#f2f5eb']];
 let state = { tasks: [], dailyTasks: [], revision: 0, token: '', readOnly: false }, month = new Date(new Date().getFullYear(), new Date().getMonth(), 1), selected = null, editing = null, filter = 'all', busy = false, dragId = null, toastTimer, pointerDrag = null, suppressClickUntil = 0;
 let rowHeight = Number(localStorage.getItem('plan-density') || 64);
